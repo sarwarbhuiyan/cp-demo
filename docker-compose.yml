@@ -68,6 +68,8 @@ services:
     image: osixia/openldap:1.3.0
     hostname: openldap
     container_name: openldap
+    ports:
+      - 389:389
     environment:
         LDAP_ORGANISATION: "ConfluentDemo"
         LDAP_DOMAIN: "confluentdemo.io"
@@ -75,6 +77,16 @@ services:
     volumes:
         - ./scripts/security/ldap_users:/container/service/slapd/assets/config/bootstrap/ldif/custom
     command: "--copy-service --loglevel debug"
+  
+  openldapadmin:
+    image: osixia/phpldapadmin:0.9.0
+    hostname: openldapadmin
+    container_name: openldapadmin
+    ports:
+      - 6443:443
+    environment:
+      PHPLDAPADMIN_LDAP_HOSTS: openldap
+      
 
   kafka1:
     image: ${REPOSITORY}/cp-server:${CONFLUENT_DOCKER_TAG}
@@ -552,8 +564,17 @@ services:
       # io.confluent.connect.security.ConnectSecurityExtension - RBAC
       # io.confluent.connect.secretregistry.ConnectSecretRegistryExtension - Secret Registry
       CONNECT_REST_EXTENSION_CLASSES: io.confluent.connect.replicator.monitoring.ReplicatorMonitoringExtension,io.confluent.connect.security.ConnectSecurityExtension,io.confluent.connect.secretregistry.ConnectSecretRegistryExtension
-      CONNECT_REST_SERVLET_INITIALIZOR_CLASSES: 'io.confluent.common.security.jetty.initializer.InstallBearerOrBasicSecurityHandler'
+      CONNECT_REST_SERVLET_INITIALIZOR_CLASSES: 'io.confluent.common.security.jetty.initializer.InstallCompositeSecurityHandler'
+      CONNECT_AUTHENTICATION_ROLES: "**"
       CONNECT_PUBLIC_KEY_PATH: /tmp/conf/public.pem
+
+      CONNECT_AUTH_SSL_PRINCIPAL_MAPPING_RULES: RULE:^CN=([a-zA-Z0-9.]*).*$$/$$1/ , DEFAULT
+      CONNECT_LISTENERS_HTTPS_SSL_CLIENT_AUTH: "requested"
+      CONNECT_LISTENERS_HTTPS_SSL_TRUSTSTORE_LOCATION: /etc/kafka/secrets/kafka.connect.truststore.jks
+      CONNECT_LISTENERS_HTTPS_SSL_TRUSTSTORE_PASSWORD: confluent
+      CONNECT_LISTENERS_HTTPS_SSL_KEYSTORE_LOCATION: /etc/kafka/secrets/kafka.connect.keystore.jks
+      CONNECT_LISTENERS_HTTPS_SSL_KEYSTORE_PASSWORD: confluent
+      CONNECT_LISTENERS_HTTPS_SSL_KEY_PASSWORD: confluent
 
       # Used by Connect's REST layer to connect to MDS to verify tokens and authenticate clients
       CONNECT_CONFLUENT_METADATA_BOOTSTRAP_SERVER_URLS: https://kafka1:8091,https://kafka2:8092
@@ -749,7 +770,7 @@ services:
       SCHEMA_REGISTRY_SSL_CLIENT_AUTHENTICATION: 'NONE'
 
       SCHEMA_REGISTRY_SCHEMA_REGISTRY_INTER_INSTANCE_PROTOCOL: "https"
-      SCHEMA_REGISTRY_LOG4J_ROOT_LOGLEVEL: INFO
+      SCHEMA_REGISTRY_LOG4J_ROOT_LOGLEVEL: DEBUG
       SCHEMA_REGISTRY_KAFKASTORE_TOPIC: _schemas
       SCHEMA_REGISTRY_KAFKASTORE_TOPIC_REPLICATION_FACTOR: 2
       SCHEMA_REGISTRY_SSL_CIPHER_SUITES: ${SSL_CIPHER_SUITES}
@@ -759,7 +780,12 @@ services:
       # Enable bearer token authentication which allows the identity of the Schema Registry end user to be propagated to Kafka for authorization
       SCHEMA_REGISTRY_SCHEMA_REGISTRY_RESOURCE_EXTENSION_CLASS: io.confluent.kafka.schemaregistry.security.SchemaRegistrySecurityResourceExtension
       SCHEMA_REGISTRY_CONFLUENT_SCHEMA_REGISTRY_AUTHORIZER_CLASS: io.confluent.kafka.schemaregistry.security.authorizer.rbac.RbacAuthorizer
-      SCHEMA_REGISTRY_REST_SERVLET_INITIALIZOR_CLASSES: io.confluent.common.security.jetty.initializer.InstallBearerOrBasicSecurityHandler
+      SCHEMA_REGISTRY_REST_SERVLET_INITIALIZOR_CLASSES: io.confluent.common.security.jetty.initializer.InstallCompositeSecurityHandler
+      SCHEMA_REGISTRY_AUTHENTICATION_ROLES: "**"
+      SCHEMA_REGISTRY_SSL_CLIENT_AUTHENTICATION: "REQUESTED"
+   
+      SCHEMA_REGISTRY_AUTH_SSL_PRINCIPAL_MAPPING_RULES: RULE:^CN=([a-zA-Z0-9.]*).*$$/$$1/ , DEFAULT
+      SCHEMA_REGISTRY_CONFLUENT_SCHEMA_REGISTRY_AUTH_SSL_PRINCIPAL_MAPPING_RULES: RULE:^CN=([a-zA-Z0-9.]*).*$$/$$1/ , DEFAULT
       SCHEMA_REGISTRY_PUBLIC_KEY_PATH: /tmp/conf/public.pem
 
       # Used by Schema Registry to connect to MDS to authenticate and authorize clients
@@ -933,8 +959,13 @@ services:
 
       # Enable bearer token authentication which allows the identity of the REST Proxy end user to be propagated to Kafka for authorization
       KAFKA_REST_KAFKA_REST_RESOURCE_EXTENSION_CLASS: io.confluent.kafkarest.security.KafkaRestSecurityResourceExtension
-      KAFKA_REST_REST_SERVLET_INITIALIZOR_CLASSES: io.confluent.common.security.jetty.initializer.InstallBearerOrBasicSecurityHandler
+      KAFKA_REST_REST_SERVLET_INITIALIZOR_CLASSES: io.confluent.common.security.jetty.initializer.InstallCompositeSecurityHandler
+      KAFKA_REST_AUTHENTICATION_ROLES: "**"
+      KAFKA_REST_SSL_CLIENT_AUTHENTICATION: "REQUESTED"
+      KAFKA_REST_CONFLUENT_REST_AUTH_SSL_PRINCIPAL_MAPPING_RULES: RULE:^CN=([a-zA-Z0-9.]*).*$$/restAdmin/ , DEFAULT 
       KAFKA_REST_PUBLIC_KEY_PATH: /tmp/conf/public.pem
+      KAFKA_REST_LOG4J_LOGGERS: "kafka.authorizer.logger=INFO"
+      KAFKA_REST_LOG4J_ROOT_LOGLEVEL: DEBUG
 
       # Used by REST Proxy to connect to MDS to verify tokens and authenticate clients
       KAFKA_REST_CONFLUENT_METADATA_SERVER_URLS_MAX_AGE_MS: 60000
