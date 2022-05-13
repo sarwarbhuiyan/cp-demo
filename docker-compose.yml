@@ -102,7 +102,6 @@ services:
     command: "bash -c 'if [ ! -f /etc/kafka/secrets/kafka.kafka1.keystore.jks ]; then echo \"ERROR: Did not find SSL certificates in /etc/kafka/secrets/ (did you remember to run ./scripts/start.sh instead of docker-compose up -d?)\" && exit 1 ; else /etc/confluent/docker/run ; fi'"
     ports:
       - 8091:8091
-      - 9091:9091
       - 10091:10091
       - 11091:11091
       - 12091:12091
@@ -124,9 +123,9 @@ services:
       KAFKA_ZOOKEEPER_SSL_TRUSTSTORE_PASSWORD: confluent
       KAFKA_ZOOKEEPER_SSL_TRUSTSTORE_TYPE: JKS
       KAFKA_ZOOKEEPER_SET_ACL: 'true'
-      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: INTERNAL:SASL_PLAINTEXT,TOKEN:SASL_SSL,SSL:SSL,CLEAR:PLAINTEXT
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: INTERNAL:SASL_SSL,TOKEN:SASL_SSL,SSL:SSL,CLEAR:PLAINTEXT
       KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
-      KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka1:9091,TOKEN://kafka1:10091,SSL://kafka1:11091,CLEAR://kafka1:12091
+      KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka1:9092,TOKEN://kafka1:10091,SSL://kafka1:11091,CLEAR://kafka1:12091
       
       KAFKA_SUPER_USERS: User:admin;User:mds;User:superUser;User:ANONYMOUS
       KAFKA_LOG4J_LOGGERS: "kafka.authorizer.logger=INFO"
@@ -170,8 +169,8 @@ services:
       # Confluent Metrics Reporter
       KAFKA_METRIC_REPORTERS: io.confluent.metrics.reporter.ConfluentMetricsReporter
       CONFLUENT_METRICS_REPORTER_TOPIC_REPLICAS: 2
-      CONFLUENT_METRICS_REPORTER_BOOTSTRAP_SERVERS: kafka1:9091,kafka2:9092
-      CONFLUENT_METRICS_REPORTER_SECURITY_PROTOCOL: SASL_PLAINTEXT
+      CONFLUENT_METRICS_REPORTER_BOOTSTRAP_SERVERS: kafka1:9092,kafka2:9092
+      CONFLUENT_METRICS_REPORTER_SECURITY_PROTOCOL: SASL_SSL
       CONFLUENT_METRICS_REPORTER_SASL_JAAS_CONFIG: "org.apache.kafka.common.security.plain.PlainLoginModule required \
         username=\"admin\" \
         password=\"admin-secret\";"
@@ -275,7 +274,6 @@ services:
     command: "bash -c 'if [ ! -f /etc/kafka/secrets/kafka.kafka2.keystore.jks ]; then echo \"ERROR: Did not find SSL certificates in /etc/kafka/secrets/ (did you remember to run ./scripts/start.sh instead of docker-compose up -d?)\" && exit 1 ; else /etc/confluent/docker/run ; fi'"
     ports:
       - 8092:8092
-      - 9092:9092
       - 10092:10092
       - 11092:11092
       - 12092:12092
@@ -297,7 +295,7 @@ services:
       KAFKA_ZOOKEEPER_SSL_TRUSTSTORE_PASSWORD: confluent
       KAFKA_ZOOKEEPER_SSL_TRUSTSTORE_TYPE: JKS
       KAFKA_ZOOKEEPER_SET_ACL: 'true'
-      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: INTERNAL:SASL_PLAINTEXT,TOKEN:SASL_SSL,SSL:SSL,CLEAR:PLAINTEXT
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: INTERNAL:SASL_SSL,TOKEN:SASL_SSL,SSL:SSL,CLEAR:PLAINTEXT
       KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
       KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka2:9092,TOKEN://kafka2:10092,SSL://kafka2:11092,CLEAR://kafka2:12092
       
@@ -343,8 +341,8 @@ services:
       # Confluent Metrics Reporter
       KAFKA_METRIC_REPORTERS: io.confluent.metrics.reporter.ConfluentMetricsReporter
       CONFLUENT_METRICS_REPORTER_TOPIC_REPLICAS: 2
-      CONFLUENT_METRICS_REPORTER_BOOTSTRAP_SERVERS: kafka1:9091,kafka2:9092
-      CONFLUENT_METRICS_REPORTER_SECURITY_PROTOCOL: SASL_PLAINTEXT
+      CONFLUENT_METRICS_REPORTER_BOOTSTRAP_SERVERS: kafka1:9092,kafka2:9092
+      CONFLUENT_METRICS_REPORTER_SECURITY_PROTOCOL: SASL_SSL
       CONFLUENT_METRICS_REPORTER_SASL_JAAS_CONFIG: "org.apache.kafka.common.security.plain.PlainLoginModule required \
         username=\"admin\" \
         password=\"admin-secret\";"
@@ -770,7 +768,7 @@ services:
       SCHEMA_REGISTRY_SSL_CLIENT_AUTHENTICATION: 'NONE'
 
       SCHEMA_REGISTRY_SCHEMA_REGISTRY_INTER_INSTANCE_PROTOCOL: "https"
-      SCHEMA_REGISTRY_LOG4J_ROOT_LOGLEVEL: DEBUG
+      SCHEMA_REGISTRY_LOG4J_ROOT_LOGLEVEL: INFO
       SCHEMA_REGISTRY_KAFKASTORE_TOPIC: _schemas
       SCHEMA_REGISTRY_KAFKASTORE_TOPIC_REPLICATION_FACTOR: 2
       SCHEMA_REGISTRY_SSL_CIPHER_SUITES: ${SSL_CIPHER_SUITES}
@@ -965,7 +963,7 @@ services:
       KAFKA_REST_CONFLUENT_REST_AUTH_SSL_PRINCIPAL_MAPPING_RULES: RULE:^CN=([a-zA-Z0-9.]*).*$$/restAdmin/ , DEFAULT 
       KAFKA_REST_PUBLIC_KEY_PATH: /tmp/conf/public.pem
       KAFKA_REST_LOG4J_LOGGERS: "kafka.authorizer.logger=INFO"
-      KAFKA_REST_LOG4J_ROOT_LOGLEVEL: DEBUG
+      KAFKA_REST_LOG4J_ROOT_LOGLEVEL: INFO
 
       # Used by REST Proxy to connect to MDS to verify tokens and authenticate clients
       KAFKA_REST_CONFLUENT_METADATA_SERVER_URLS_MAX_AGE_MS: 60000
@@ -974,6 +972,16 @@ services:
       KAFKA_REST_CONFLUENT_METADATA_HTTP_AUTH_CREDENTIALS_PROVIDER: BASIC
       KAFKA_REST_CONFLUENT_METADATA_BASIC_AUTH_USER_INFO: 'restAdmin:restAdmin'
 
+
+  nginx:
+    image: nginx:latest
+    hostname: nginx
+    container_name: nginx
+    volumes:
+      - ./kafka_nginx.conf:/etc/nginx/nginx.conf:ro
+    ports:
+      - 9092:9092
+      - 443:443
 
   streams-demo:
     image: cnfldemos/cp-demo-kstreams:0.0.10
