@@ -21,6 +21,18 @@ Confluent Control Center is managing and monitoring the deployment.
 
 ![image](docs/images/cp-demo-overview.jpg)
 
+## nginx requirements
+
+The example uses nginx with deferred DNS resolution to allow access to Kafka via nginx. To do this, you need to put in entries in /etc/hosts for kafak1 and kafka2
+
+```
+127.0.0.1 kafka1
+127.0.0.1 kafka2
+```
+
+I did have to change the listener from SASL_PLAINTEXT to SASL_SSL so to use this you'd need to add in the right configs and credentials from the client to use it.
+
+
 ## Documentation
 
 You can find the documentation for running this example and its accompanying tutorial at [https://docs.confluent.io/platform/current/tutorials/cp-demo/docs/index.html](https://docs.confluent.io/platform/current/tutorials/cp-demo/docs/index.html?utm_source=github&utm_medium=demo&utm_campaign=ch.cp-demo_type.community_content.cp-demo).
